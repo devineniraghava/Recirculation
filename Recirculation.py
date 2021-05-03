@@ -11,7 +11,7 @@ Created on Thu Apr  8 14:26:27 2021
 
 @author: Devineni
 """
-
+# Necessary modules
 import pandas as pd
 import numpy as np
 from statistics import mean
@@ -19,34 +19,28 @@ import time
 import datetime as dt
 import matplotlib.pyplot as plt
 from tabulate import tabulate
-
-# import mysql.connector
-import os
 from sqlalchemy import create_engine
 
-from easygui import *
 # functions to print in colour
 def prRed(skk): print("\033[31;1;m {}\033[00m" .format(skk)) 
 def prYellow(skk): print("\033[33;1;m {}\033[00m" .format(skk)) 
-
-from uncertainties import ufloat
-# engine = create_engine("mysql+pymysql://root:Password123@localhost/",pool_pre_ping=True)
-engine = create_engine("mysql+pymysql://wojtek:Password#102@wojtek.mysql.database.azure.com/",pool_pre_ping=True)
+# The following is a general syntax to dedine a MySQL connection
+# engine = create_engine("mysql+pymysql://root:Password123@localhost/",\
+#                         pool_pre_ping=True) # Krishna's local address
+engine = create_engine("mysql+pymysql://wojtek:Password#102@wojtek.mysql.database.azure.com/",\
+                      pool_pre_ping=True) # Cloud server address
 
 #%% Function import
-# syntax to import a function from any folder $ very important
+"""Syntax to import a function from any folder. Useful if the function.py file 
+   is in another folder other than the working folder"""
 import sys  
 sys.path.append("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/python_files/")  
-from Outdoor_CO2 import outdoor
+from Outdoor_CO2 import outdoor # This function calculates the outdoor CO2 data
 
-#%% Control plot properties
+#%% Control plot properties"
+"""This syntax controls the plot properties(default plot font, shape, etc), 
+    more attributes can be added and removed depending on the requirement """
 
-# this is for the precise date formatter
-import matplotlib.dates as mdates
-
-import matplotlib.units as munits
-# this syntax controls the plot properties, more attributes can be addes and -
-# - removed depending on the requirement
 from pylab import rcParams
 rcParams['figure.figsize'] = 7,4.5
 plt.rcParams["font.family"] = "calibri"
@@ -56,90 +50,92 @@ plt.rcParams["font.size"] = 10
 plt.close("all")
 
 #%%
- # in ppm
-i = 17 # to select the experiment
+i = 17 # to select the experiment (see Timeframes.xlsx)
 j = 0 # to select the sensor in the ventilation device
-
+offset = 0 # sometimes the ablolute CO2 concentraion is negative, so using offset
 # time = pd.read_excel("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/Times_thesis.xlsx", sheet_name="Timeframes")
-# The dataframe time comes from the excel sheet in the path above, to edit go -
-# - this excel sheet edit and upload it to mysql
-time = pd.read_sql_query("SELECT * FROM testdb.timeframes;", con = engine)
-start, end = str(time["Start"][i] - dt.timedelta(minutes=20)), str(time["End"][i])
-t0 = time["Start"][i]
+# The dataframe time comes from the excel sheet in the path above, to make -
+# - changes go to this excel sheet, edit and upload it to mysql.
 
-table = time["tables"][i].split(",")[j] # CHANGE HERE
+time = pd.read_sql_query("SELECT * FROM testdb.timeframes;", con = engine)      #standard syntax to fetch a table from Mysql
 
-dum = [["Experiment",time["short_name"][i] ], ["Sensor", table]]
+start, end = str(time["Start"][i] - dt.timedelta(minutes=20)), str(time["End"][i]) # selects start and end times to slice dataframe
+t0 = time["Start"][i]                                                           #actual start of the experiment
+
+table = time["tables"][i].split(",")[j]                                         #Name of the ventilation device
+
+dum = [["Experiment",time["short_name"][i] ], ["Sensor", table]]                # Prints the inut details in a table
 print(tabulate(dum))
 
-database = time["database"][i]
+database = time["database"][i]                                                  # Selects the database 
 
 
-background, dummy = outdoor(str(t0), str(end), plot = False)
-background = background["CO2_ppm"].mean()
+background, dummy = outdoor(str(t0), str(end), plot = False)                    # Syntax to call the background concentration function
+background = background["CO2_ppm"].mean()                                       # Future: implement cyclewise background concentration
 
 df = pd.read_sql_query("SELECT * FROM {}.{} WHERE datetime BETWEEN '{}' AND\
                        '{}'".format(database, table, start, end), con = engine)
 df = df.loc[:,["datetime", "CO2_ppm"]]
-df["original"] = df["CO2_ppm"] 
+df["original"] = df["CO2_ppm"]                                                  # filters only the CO2 data till this line
 
-df["CO2_ppm"] = df["CO2_ppm"] - background + 30
-df = df.loc[~df.duplicated(subset=["datetime"])]
-
+df["CO2_ppm"] = df["CO2_ppm"] - background + offset                             # Background concentration
+df = df.loc[~df.duplicated(subset=["datetime"])]                                # checks for duplicated in datetime and removed them
+diff = (df["datetime"][1]-df["datetime"][0]).seconds
 df = df.set_index("datetime")
-while not(t0 in df.index.to_list()):
-    t0 = t0 + dt.timedelta(seconds=1)
-    print(t0)
+while not(t0 in df.index.to_list()):                                            # The t0 from the excel sheet may not be precice that the sensor starts 
+    t0 = t0 + dt.timedelta(seconds=1)                                           # - starts at the same time so i used this while loop to calculate the 
+    print(t0)                                                                   # - the closest t0 after the original t0
 
-df["roll"] = df["CO2_ppm"].rolling(24).mean()
+df["roll"] = df["CO2_ppm"].rolling(int(120/diff)).mean()                             # moving average for 2 minutes, used to calculate Cend 
 
 
 
-c0 = df["CO2_ppm"].loc[t0]
-Cend37 = round((c0 - background)*0.37, 2)
+c0 = df["CO2_ppm"].loc[t0]                                                      # C0
+Cend37 = round((c0)*0.37, 2)   
 
-cend = df.loc[df["roll"].le(Cend37)]
+cend = df.loc[df["roll"].le(Cend37)]                                            # Cend
 
-if len(cend) == 0:
+if len(cend) == 0:                                                              # Syntax to find the tn of the experiment
     tn = str(df.index[-1])
+    print("The device has not reached 37% of its initial concentration")
 else:
     tn = str(cend.index[0])
 
 
 fig,ax = plt.subplots()
 df.plot(title = "original", color = [ 'green', 'silver'], ax = ax)
-from scipy.signal import argrelextrema
-n = 10
 
 
-df['max'] = df.iloc[argrelextrema(df['CO2_ppm'].values, np.greater_equal, order=n)[0]]['CO2_ppm']
-df['min'] = df.iloc[argrelextrema(df['CO2_ppm'].values, np.less_equal, order=n)[0]]['CO2_ppm']
-df['max'].plot(marker='o', ax = ax)
-df['min'].plot(marker="v", ax = ax)
+from scipy.signal import argrelextrema                                          # Calculates the relative extrema of data.
+n = 10                                                                          # How many points on each side to use for the comparison to consider comparator(n, n+x) to be True.
 
+df['max'] = df.iloc[argrelextrema(df['CO2_ppm'].values, np.greater_equal,\
+                                  order=n)[0]]['CO2_ppm']                       # Gives all the peaks 
+df['min'] = df.iloc[argrelextrema(df['CO2_ppm'].values, np.less_equal,\
+                                  order=n)[0]]['CO2_ppm']                       # Gives all the valleys
+df['max'].plot(marker='o', ax = ax)                                             # This needs to be verified with the graph if python recognizes all peaks
+df['min'].plot(marker="v", ax = ax)                                             # - and valleys. If not adjust the n value.
 
-df.loc[df['min'] > -400, 'mask'] = False
-
-df.loc[df['max'] > 0, 'mask'] = True
-
-df["mask"] = df["mask"].fillna(method='ffill').astype("bool")
-
+# The following lines are used to filter supply and exhaust phases 
+df.loc[df['min'] > -400, 'mask'] = False                                        # Marks all min as False                         
+df.loc[df['max'] > 0, 'mask'] = True                                            # Marks all min as True
+df["mask"] = df["mask"].fillna(method='ffill').astype("bool")                   # Use forward to fill True and False 
 df = df.dropna(subset= ["mask"])
-
-df["sup"] = df["mask"];df["exh"] = df["mask"]
-
-
-
-df.loc[df['min'] > 0, 'sup'] = True
-df.loc[df['max'] > 0, 'exh'] = False
+df["sup"] = df["mask"]                                                          # Create seperate columns for sup and exhaust
+df["exh"] = df["mask"]
 
 
 
-df_sup = df.loc[df["sup"].to_list()]
+df.loc[df['min'] > 0, 'sup'] = True                                             # The valleys have to be belong to supply as well 
+df.loc[df['max'] > 0, 'exh'] = False                                            # The peaks have to belong to max, before it was all filled be backfill
 
-a = df_sup.resample("5S").mean()
-plt.figure()
-a["CO2_ppm"].plot(title = "supply")
+
+
+df_sup = df.loc[df["sup"].to_list()]                                            
+
+a = df_sup.resample("5S").mean()                                                # Resampled beacuase, the data will be irregular
+plt.figure()                                                                    # This can be verified from this graph        
+a["CO2_ppm"].plot(title = "supply") 
 df_sup2 = a.loc[:,["CO2_ppm"]]
 
 df_exh = df.loc[~df["exh"].values]
@@ -148,15 +144,15 @@ plt.figure()
 
 
 
-b["CO2_ppm"].plot(title = "exhaust")
+b["CO2_ppm"].plot(title = "exhaust")                                            # Similar procedure is repeated from exhaust
 df_exh2 = b.loc[:,["CO2_ppm"]]
 
 # Plot for extra prespective
-# fig,ax = plt.subplots()
+fig,ax = plt.subplots()
 
 
-# df_sup.plot(y="CO2_ppm", style="yv-", ax = ax, label = "supply")
-# df_exh.plot(y="CO2_ppm", style="r^-", ax = ax, label = "exhaust")
+df_sup.plot(y="CO2_ppm", style="yv-", ax = ax, label = "supply")
+df_exh.plot(y="CO2_ppm", style="r^-", ax = ax, label = "exhaust")
 
 
 
@@ -306,25 +302,6 @@ for df in df_tau_exh:
     tau_list_exh.append(df["tau_sec"][0])
 
 tau_e = np.mean(tau_list_exh)
-
-
-
-
-
-
-
-
-#%%
-# from sqlalchemy import create_engine
-
-# engine = create_engine("mysql+pymysql://remoteroot:Password123@Raghavakrishna-PC/",pool_pre_ping=True)
-
-# df = pd.read_sql_query("select * from mysql.user;", con = engine)
-
-
-
-
-
 
 
 
