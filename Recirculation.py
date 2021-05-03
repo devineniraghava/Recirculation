@@ -50,9 +50,9 @@ plt.rcParams["font.size"] = 10
 plt.close("all")
 
 #%% Load relevant data
-i = 3 # to select the experiment (see Timeframes.xlsx)
-j = 2 # to select the sensor in the ventilation device
-offset = 0 # sometimes the ablolute CO2 concentraion is negative, so using offset
+i = 16 # to select the experiment (see Timeframes.xlsx)
+j = 1 # to select the sensor in the ventilation device
+offset = 0 
 # time = pd.read_excel("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/Times_thesis.xlsx", sheet_name="Timeframes")
 # The dataframe time comes from the excel sheet in the path above, to make -
 # - changes go to this excel sheet, edit and upload it to mysql.
@@ -78,8 +78,13 @@ df = pd.read_sql_query("SELECT * FROM {}.{} WHERE datetime BETWEEN '{}' AND\
 df = df.loc[:,["datetime", "CO2_ppm"]]
 df["original"] = df["CO2_ppm"]                                                  # filters only the CO2 data till this line
 
-df["CO2_ppm"] = df["CO2_ppm"] - background + offset                             # Background concentration
-df = df.loc[~df.duplicated(subset=["datetime"])]                                # checks for duplicated in datetime and removed them
+df["CO2_ppm"] = df["CO2_ppm"] - background                                      # Background concentration
+
+if df["CO2_ppm"].min() < 0:                                                     # Sometimes the ablolute CO2 concentraion is negative, so using offset
+    offset = df["CO2_ppm"].min()
+    df["CO2_ppm"] = df["CO2_ppm"] - offset
+    
+df = df.loc[~df.duplicated(subset=["datetime"])]                                # Checks for duplicated in datetime and removed them
 diff = (df["datetime"][1]-df["datetime"][0]).seconds
 df = df.set_index("datetime")
 while not(t0 in df.index.to_list()):                                            # The t0 from the excel sheet may not be precice that the sensor starts 
@@ -105,6 +110,11 @@ else:
 fig,ax = plt.subplots()
 df.plot(title = "original", color = [ 'green', 'silver'], ax = ax)
 
+pdf = df.copy().reset_index()
+#%%% Only in VS Code
+import plotly.express as px
+fig = px.scatter(pdf, x="datetime", y="CO2_ppm")
+fig.show()
 #%%% Find max min points
 from scipy.signal import argrelextrema                                          # Calculates the relative extrema of data.
 n = 10                                                                          # How many points on each side to use for the comparison to consider comparator(n, n+x) to be True.
@@ -157,7 +167,7 @@ df_exh.plot(y="CO2_ppm", style="r^-", ax = ax, label = "exhaust")
 
 
 #%% Marking dataframes supply
-
+"""Marks every supply dataframe with a number for later anaysis """
 n = 1
 df_sup3 = df_sup2.copy().reset_index()
 
@@ -184,12 +194,13 @@ df_sup_list = []
 for i in range(1, int(df_sup3.num.max()+1)):
     df_sup_list.append(df_sup3.loc[df_sup3["num"]==i])
 
-#%%% Supply tau
-
+#%%% Supply tau 
+# This method can be replicated in excel for crossreference
+"""Calculates tau based in ISO 16000-8"""
 df_tau_sup = []
-for df in df_sup_list:
-    if len(df) > 3:
-        a = df.reset_index(drop = True)
+for idf in df_sup_list:
+    if len(idf) > 3:
+        a = idf.reset_index(drop = True)
         a["log"] = np.log(a["CO2_ppm"])
         
         diff = (a["datetime"][1] - a["datetime"][0]).seconds
@@ -219,7 +230,7 @@ for df in df_sup_list:
         area_sup_2 = trapz(a["CO2_ppm"].values, dx=diff) # proof that both methods have same answer
         
 
-        tau = ((diff * (a["CO2_ppm"][0]/2 + sumconz +a["CO2_ppm"][len(a)-1]/2)) + tail)/a["CO2_ppm"][0]
+        tau = (area_sup_2 + tail)/a["CO2_ppm"][0]
         a["tau_sec"] = tau
         df_tau_sup.append(a)
     else:
@@ -233,6 +244,8 @@ tau_s = np.mean(tau_list_sup)
 
     
 #%% Marking dataframes exhaust
+"""Marks every exhaust dataframe with a number for later anaysis """
+
 n = 1
 df_exh3 = df_exh2.copy().reset_index()
 
@@ -257,6 +270,9 @@ df_exh_list = []
 for i in range(1, int(df_exh3.num.max()+1)):
     df_exh_list.append(df_exh3.loc[df_exh3["num"]==i])
 #%%% Exhaust tau
+# this method can be replicated in Excel for crossverification
+"""Calculates tau based in area under the curve"""
+
 df_tau_exh = []
 for e in df_exh_list:
     if len(e) > 3:
@@ -287,18 +303,17 @@ for e in df_exh_list:
         tail = b["CO2_ppm"][len(b)-1]/abs(slope)
         area1= (diff * (b["CO2_ppm"][0]/2 + sumconz +b["CO2_ppm"][len(b)-1]/2))
         from numpy import trapz
-        area2 = trapz(b["CO2_ppm"].values, dx=diff) # proof that both methods have same answer
+        area2 = trapz(b["CO2_ppm"].values, dx=diff)                             # proof that both methods have same answer
         
-
-        tau2 = ((diff * (b["CO2_ppm"][0]/2 + sumconz +b["CO2_ppm"][len(b)-1]/2)) + tail)/b["CO2_ppm"][len(b)-1]
+        tau2 = (area2 + tail)/b["CO2_ppm"][len(b)-1]
         b["tau_sec"] = tau2
         df_tau_exh.append(b)
     else:
         pass
 #%%% Exhaust final tau 
 tau_list_exh = []
-for df in df_tau_exh:
-    tau_list_exh.append(df["tau_sec"][0])
+for jdf in df_tau_exh:
+    tau_list_exh.append(jdf["tau_sec"][0])
 
 tau_e = np.mean(tau_list_exh)
 
