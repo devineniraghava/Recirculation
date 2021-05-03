@@ -49,9 +49,9 @@ plt.rcParams["font.size"] = 10
 	
 plt.close("all")
 
-#%%
-i = 17 # to select the experiment (see Timeframes.xlsx)
-j = 0 # to select the sensor in the ventilation device
+#%% Load relevant data
+i = 3 # to select the experiment (see Timeframes.xlsx)
+j = 2 # to select the sensor in the ventilation device
 offset = 0 # sometimes the ablolute CO2 concentraion is negative, so using offset
 # time = pd.read_excel("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/Times_thesis.xlsx", sheet_name="Timeframes")
 # The dataframe time comes from the excel sheet in the path above, to make -
@@ -101,11 +101,11 @@ if len(cend) == 0:                                                              
 else:
     tn = str(cend.index[0])
 
-
+#%%% Plot Original
 fig,ax = plt.subplots()
 df.plot(title = "original", color = [ 'green', 'silver'], ax = ax)
 
-
+#%%% Find max min points
 from scipy.signal import argrelextrema                                          # Calculates the relative extrema of data.
 n = 10                                                                          # How many points on each side to use for the comparison to consider comparator(n, n+x) to be True.
 
@@ -113,10 +113,11 @@ df['max'] = df.iloc[argrelextrema(df['CO2_ppm'].values, np.greater_equal,\
                                   order=n)[0]]['CO2_ppm']                       # Gives all the peaks 
 df['min'] = df.iloc[argrelextrema(df['CO2_ppm'].values, np.less_equal,\
                                   order=n)[0]]['CO2_ppm']                       # Gives all the valleys
+    
 df['max'].plot(marker='o', ax = ax)                                             # This needs to be verified with the graph if python recognizes all peaks
 df['min'].plot(marker="v", ax = ax)                                             # - and valleys. If not adjust the n value.
 
-# The following lines are used to filter supply and exhaust phases 
+#%%% Filter supply and exhaust phases 
 df.loc[df['min'] > -400, 'mask'] = False                                        # Marks all min as False                         
 df.loc[df['max'] > 0, 'mask'] = True                                            # Marks all min as True
 df["mask"] = df["mask"].fillna(method='ffill').astype("bool")                   # Use forward to fill True and False 
@@ -134,7 +135,8 @@ df.loc[df['max'] > 0, 'exh'] = False                                            
 df_sup = df.loc[df["sup"].to_list()]                                            
 
 a = df_sup.resample("5S").mean()                                                # Resampled beacuase, the data will be irregular
-plt.figure()                                                                    # This can be verified from this graph        
+plt.figure() 
+#%%% Plot supply                                                                   # This can be verified from this graph        
 a["CO2_ppm"].plot(title = "supply") 
 df_sup2 = a.loc[:,["CO2_ppm"]]
 
@@ -142,23 +144,20 @@ df_exh = df.loc[~df["exh"].values]
 b = df_exh.resample("5S").mean()
 plt.figure()
 
-
-
+#%%% Plot exhaust
 b["CO2_ppm"].plot(title = "exhaust")                                            # Similar procedure is repeated from exhaust
 df_exh2 = b.loc[:,["CO2_ppm"]]
 
-# Plot for extra prespective
+#%%% Plot for extra prespective
 fig,ax = plt.subplots()
-
 
 df_sup.plot(y="CO2_ppm", style="yv-", ax = ax, label = "supply")
 df_exh.plot(y="CO2_ppm", style="r^-", ax = ax, label = "exhaust")
 
 
 
-#%%
+#%% Marking dataframes supply
 
-from pandas.api.types import is_numeric_dtype
 n = 1
 df_sup3 = df_sup2.copy().reset_index()
 
@@ -171,7 +170,7 @@ df_sup3 = df_sup3.loc[mask]
 
 for i,j in df_sup3.iterrows():
     try:
-        print(not pd.isnull(j["CO2_ppm"]), (np.isnan(df_sup3["CO2_ppm"][i+1])))
+        # print(not pd.isnull(j["CO2_ppm"]), (np.isnan(df_sup3["CO2_ppm"][i+1])))
         if (not pd.isnull(j["CO2_ppm"])) and (np.isnan(df_sup3["CO2_ppm"][i+1])):
             df_sup3.loc[i,"num"] = n
             n = n+1
@@ -185,7 +184,7 @@ df_sup_list = []
 for i in range(1, int(df_sup3.num.max()+1)):
     df_sup_list.append(df_sup3.loc[df_sup3["num"]==i])
 
-#%% supply
+#%%% Supply tau
 
 df_tau_sup = []
 for df in df_sup_list:
@@ -225,7 +224,7 @@ for df in df_sup_list:
         df_tau_sup.append(a)
     else:
         pass
-#%%
+#%%% Supply final tau
 tau_list_sup = []
 for h in df_tau_sup:
     tau_list_sup.append(h["tau_sec"][0])
@@ -233,7 +232,7 @@ for h in df_tau_sup:
 tau_s = np.mean(tau_list_sup)
 
     
-#%% exhaust
+#%% Marking dataframes exhaust
 n = 1
 df_exh3 = df_exh2.copy().reset_index()
 
@@ -245,7 +244,7 @@ df_exh3 = df_exh3.loc[mask]
 
 for i,j in df_exh3.iterrows():
     try:
-        print(not pd.isnull(j["CO2_ppm"]), (np.isnan(df_exh3["CO2_ppm"][i+1])))
+        # print(not pd.isnull(j["CO2_ppm"]), (np.isnan(df_exh3["CO2_ppm"][i+1])))
         if (not pd.isnull(j["CO2_ppm"])) and (np.isnan(df_exh3["CO2_ppm"][i+1])):
             df_exh3.loc[i,"num"] = n
             n = n+1
@@ -257,7 +256,7 @@ for i,j in df_exh3.iterrows():
 df_exh_list = []
 for i in range(1, int(df_exh3.num.max()+1)):
     df_exh_list.append(df_exh3.loc[df_exh3["num"]==i])
-
+#%%% Exhaust tau
 df_tau_exh = []
 for e in df_exh_list:
     if len(e) > 3:
@@ -296,7 +295,7 @@ for e in df_exh_list:
         df_tau_exh.append(b)
     else:
         pass
-#%%
+#%%% Exhaust final tau 
 tau_list_exh = []
 for df in df_tau_exh:
     tau_list_exh.append(df["tau_sec"][0])
@@ -305,7 +304,7 @@ tau_e = np.mean(tau_list_exh)
 
 
 
-#%%
+#%% Final result print
 prYellow("Recirculation:  {} %".format(round((tau_s/tau_e)*100) )  )
 
 
