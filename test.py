@@ -23,7 +23,7 @@ K1=(tau1 * v1)/V
 print(K0, K1)
 
 
-
+# la la al ala allllala la la 
 #%%
 
 
