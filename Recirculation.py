@@ -50,8 +50,8 @@ plt.rcParams["font.size"] = 10
 plt.close("all")
 
 #%% Load relevant data
-i = 16 # to select the experiment (see Timeframes.xlsx)
-j = 1 # to select the sensor in the ventilation device
+i = 6 # to select the experiment (see Timeframes.xlsx)
+j = 2 # to select the sensor in the ventilation device
 offset = 0 
 # time = pd.read_excel("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/Times_thesis.xlsx", sheet_name="Timeframes")
 # The dataframe time comes from the excel sheet in the path above, to make -

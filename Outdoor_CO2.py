@@ -14,9 +14,8 @@ from easygui import *
 
 def prRed(skk): print("\033[31;1;m {}\033[00m" .format(skk)) 
 def prYellow(skk): print("\033[33;1;m {}\033[00m" .format(skk)) 
-engine = create_engine("mysql+pymysql://root:Password123@localhost/",pool_pre_ping=True)
-
-engine_online = create_engine("mysql+pymysql://remoteroot:Password123@192.168.0.103/",pool_pre_ping=True)
+engine = create_engine("mysql+pymysql://wojtek:Password#102@wojtek.mysql.database.azure.com/",\
+                      pool_pre_ping=True) # Cloud server address
 #%%
 #%% control plot properties
 import datetime
@@ -57,7 +56,7 @@ def outdoor(*times, plot=False):
 
     """
     if len(times)==2:
-        df = pd.read_sql_query("SELECT * FROM testdb.database_selection;", con = engine_online)
+        df = pd.read_sql_query("SELECT * FROM testdb.database_selection;", con = engine)
 
         if (strtime(times[0]) >= df["start"][0] ) & (strtime(times[1]) <= df["end"][0] ):
             database = df["database"][0]
@@ -68,11 +67,11 @@ def outdoor(*times, plot=False):
         elif (strtime(times[0]) >= df["start"][3] ) & (strtime(times[1]) <= df["end"][3] ):
             database = df["database"][3]
             
-        df = pd.read_sql_query("SELECT * FROM {}.außen WHERE datetime BETWEEN '{}' AND '{}';".format(database, times[0], times[1]), con = engine_online)
+        df = pd.read_sql_query("SELECT * FROM {}.außen WHERE datetime BETWEEN '{}' AND '{}';".format(database, times[0], times[1]), con = engine)
         df = df.loc[:, ['datetime', 'temp_°C', 'RH_%rH', 'CO2_ppm']]
         experiment = database
     else:
-        times = pd.read_sql_query("SELECT * FROM testdb.times;", con = engine_online)
+        times = pd.read_sql_query("SELECT * FROM testdb.times;", con = engine)
         
         msg ="Then, please select a timeframe to extract outdoor data"
         title = "Time selection for outdoor data extraction"
@@ -83,7 +82,7 @@ def outdoor(*times, plot=False):
         database = str(times.loc[times["short_name"] == experiment]["database"].iat[0])
     
     
-        df = pd.read_sql_query("SELECT * FROM {}.außen WHERE datetime BETWEEN '{}' AND '{}';".format(database, t0, tn), con = engine_online)
+        df = pd.read_sql_query("SELECT * FROM {}.außen WHERE datetime BETWEEN '{}' AND '{}';".format(database, t0, tn), con = engine)
         df = df.loc[:, ['datetime', 'temp_°C', 'RH_%rH', 'CO2_ppm']]
     
     if plot==True:
