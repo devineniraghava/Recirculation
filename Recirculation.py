@@ -18,6 +18,7 @@ from statistics import mean
 import time
 import datetime as dt
 import matplotlib.pyplot as plt
+pd.options.plotting.backend = "matplotlib"
 from tabulate import tabulate
 from sqlalchemy import create_engine
 
@@ -25,8 +26,10 @@ from sqlalchemy import create_engine
 def prRed(skk): print("\033[31;1;m {}\033[00m" .format(skk)) 
 def prYellow(skk): print("\033[33;1;m {}\033[00m" .format(skk)) 
 # The following is a general syntax to dedine a MySQL connection
-# engine = create_engine("mysql+pymysql://root:Password123@localhost/",\
-#                         pool_pre_ping=True) # Krishna's local address
+# =============================================================================
+# engine = create_engine("mysql+pymysql://admin:the_secure_password_4_ever@localhost/",\
+#                          pool_pre_ping=True) # Krishna's local address
+# =============================================================================
 engine = create_engine("mysql+pymysql://wojtek:Password#102@wojtek.mysql.database.azure.com/",\
                       pool_pre_ping=True) # Cloud server address
 
@@ -50,7 +53,7 @@ plt.rcParams["font.size"] = 10
 plt.close("all")
 
 #%% Load relevant data
-i = 6 # to select the experiment (see Timeframes.xlsx)
+i = 16 # to select the experiment (see Timeframes.xlsx)
 j = 2 # to select the sensor in the ventilation device
 offset = 0 
 # time = pd.read_excel("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/Times_thesis.xlsx", sheet_name="Timeframes")
