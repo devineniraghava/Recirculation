@@ -112,10 +112,7 @@ fig,ax = plt.subplots()
 df.plot(title = "original " + time["short_name"][t], color = [ 'silver', 'green', 'orange'], ax = ax)
 
 pdf = df.copy().reset_index()
-#%%% Plotly 
-import plotly.express as px
-fig = px.line(pdf, x="datetime", y="CO2_ppm")
-fig.show()
+
 #%%% Find max min points
 from scipy.signal import argrelextrema                                          # Calculates the relative extrema of data.
 n = 10                                                                          # How many points on each side to use for the comparison to consider comparator(n, n+x) to be True.
@@ -146,18 +143,29 @@ df.loc[df['max'] > 0, 'exh'] = False                                            
 df_sup = df.loc[df["sup"].to_list()]                                            
 
 a = df_sup.resample("5S").mean()                                                # Resampled beacuase, the data will be irregular
-plt.figure() 
-#%%% Plot supply                                                                   # This can be verified from this graph        
+#%%% Plot supply  
+plt.figure()
+                                                                 # This can be verified from this graph        
 a["CO2_ppm"].plot(title = "supply " + time["short_name"][t]) 
 df_sup2 = a.loc[:,["CO2_ppm"]]
 
 df_exh = df.loc[~df["exh"].values]
 b = df_exh.resample("5S").mean()
-plt.figure()
 
 #%%% Plot exhaust
+plt.figure()
+
 b["CO2_ppm"].plot(title = "exhaust " + time["short_name"][t])                                            # Similar procedure is repeated from exhaust
 df_exh2 = b.loc[:,["CO2_ppm"]]
+
+#%%% Plotly 
+sup_exh_df = pd.concat([df_sup2, df_exh2], axis = 1).reset_index()
+sup_exh_df.columns = ["datetime","supply", "exhaust"]
+
+import plotly.express as px
+fig = px.line(sup_exh_df, x="datetime", y = sup_exh_df.columns, title = time["short_name"][t])
+fig.show()
+
 
 #%%% Plot for extra prespective
 fig,ax1 = plt.subplots()
