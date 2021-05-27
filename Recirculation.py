@@ -15,9 +15,10 @@ Created on Thu Apr  8 14:26:27 2021
 import pandas as pd
 import numpy as np
 from statistics import mean
-import time
 import datetime as dt
 import matplotlib.pyplot as plt
+pd.options.plotting.backend = "matplotlib"
+
 from tabulate import tabulate
 from sqlalchemy import create_engine
 
@@ -50,24 +51,24 @@ plt.rcParams["font.size"] = 10
 plt.close("all")
 
 #%% Load relevant data
-i = 6 # to select the experiment (see Timeframes.xlsx)
-j = 2 # to select the sensor in the ventilation device
-offset = 0 
+t = 16 # to select the experiment (see Timeframes.xlsx)
+l = 1 # to select the sensor in the ventilation device
+
 # time = pd.read_excel("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/Times_thesis.xlsx", sheet_name="Timeframes")
 # The dataframe time comes from the excel sheet in the path above, to make -
 # - changes go to this excel sheet, edit and upload it to mysql.
 
 time = pd.read_sql_query("SELECT * FROM testdb.timeframes;", con = engine)      #standard syntax to fetch a table from Mysql
 
-start, end = str(time["Start"][i] - dt.timedelta(minutes=20)), str(time["End"][i]) # selects start and end times to slice dataframe
-t0 = time["Start"][i]                                                           #actual start of the experiment
+start, end = str(time["Start"][t] - dt.timedelta(minutes=20)), str(time["End"][t]) # selects start and end times to slice dataframe
+t0 = time["Start"][t]                                                           #actual start of the experiment
 
-table = time["tables"][i].split(",")[j]                                         #Name of the ventilation device
+table = time["tables"][t].split(",")[l]                                         #Name of the ventilation device
 
-dum = [["Experiment",time["short_name"][i] ], ["Sensor", table]]                # Prints the inut details in a table
+dum = [["Experiment",time["short_name"][t] ], ["Sensor", table]]                # Prints the input details in a table
 print(tabulate(dum))
 
-database = time["database"][i]                                                  # Selects the database 
+database = time["database"][t]                                                  # Selects the database 
 
 
 background, dummy = outdoor(str(t0), str(end), plot = False)                    # Syntax to call the background concentration function
@@ -77,9 +78,9 @@ df = pd.read_sql_query("SELECT * FROM {}.{} WHERE datetime BETWEEN '{}' AND\
                        '{}'".format(database, table, start, end), con = engine)
 df = df.loc[:,["datetime", "CO2_ppm"]]
 df["original"] = df["CO2_ppm"]                                                  # filters only the CO2 data till this line
+df.columns = ["datetime", "original", "CO2_ppm"]
 
 df["CO2_ppm"] = df["CO2_ppm"] - background                                      # Background concentration
-
 if df["CO2_ppm"].min() < 0:                                                     # Sometimes the ablolute CO2 concentraion is negative, so using offset
     offset = df["CO2_ppm"].min()
     df["CO2_ppm"] = df["CO2_ppm"] - offset
@@ -108,12 +109,12 @@ else:
 
 #%%% Plot Original
 fig,ax = plt.subplots()
-df.plot(title = "original", color = [ 'green', 'silver'], ax = ax)
+df.plot(title = "original " + time["short_name"][t], color = [ 'silver', 'green', 'orange'], ax = ax)
 
 pdf = df.copy().reset_index()
-#%%% Only in VS Code
+#%%% Plotly 
 import plotly.express as px
-fig = px.scatter(pdf, x="datetime", y="CO2_ppm")
+fig = px.line(pdf, x="datetime", y="CO2_ppm")
 fig.show()
 #%%% Find max min points
 from scipy.signal import argrelextrema                                          # Calculates the relative extrema of data.
@@ -147,7 +148,7 @@ df_sup = df.loc[df["sup"].to_list()]
 a = df_sup.resample("5S").mean()                                                # Resampled beacuase, the data will be irregular
 plt.figure() 
 #%%% Plot supply                                                                   # This can be verified from this graph        
-a["CO2_ppm"].plot(title = "supply") 
+a["CO2_ppm"].plot(title = "supply " + time["short_name"][t]) 
 df_sup2 = a.loc[:,["CO2_ppm"]]
 
 df_exh = df.loc[~df["exh"].values]
@@ -155,14 +156,14 @@ b = df_exh.resample("5S").mean()
 plt.figure()
 
 #%%% Plot exhaust
-b["CO2_ppm"].plot(title = "exhaust")                                            # Similar procedure is repeated from exhaust
+b["CO2_ppm"].plot(title = "exhaust " + time["short_name"][t])                                            # Similar procedure is repeated from exhaust
 df_exh2 = b.loc[:,["CO2_ppm"]]
 
 #%%% Plot for extra prespective
-fig,ax = plt.subplots()
+fig,ax1 = plt.subplots()
 
-df_sup.plot(y="CO2_ppm", style="yv-", ax = ax, label = "supply")
-df_exh.plot(y="CO2_ppm", style="r^-", ax = ax, label = "exhaust")
+df_sup.plot(y="CO2_ppm", style="yv-", ax = ax1, label = "supply")
+df_exh.plot(y="CO2_ppm", style="r^-", ax = ax1, label = "exhaust")
 
 
 
