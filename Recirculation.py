@@ -34,8 +34,8 @@ engine = create_engine("mysql+pymysql://wojtek:Password#102@wojtek.mysql.databas
 #%% Function import
 """Syntax to import a function from any folder. Useful if the function.py file 
    is in another folder other than the working folder"""
-import sys  
-sys.path.append("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/python_files/")  
+# import sys  
+# sys.path.append("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/python_files/")  
 from Outdoor_CO2 import outdoor # This function calculates the outdoor CO2 data
 
 #%% Control plot properties"
