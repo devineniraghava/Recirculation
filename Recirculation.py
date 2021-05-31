@@ -37,7 +37,7 @@ engine = create_engine("mysql+pymysql://wojtek:Password#102@wojtek.mysql.databas
 """Syntax to import a function from any folder. Useful if the function.py file 
    is in another folder other than the working folder"""
 import sys  
-sys.path.append("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/python_files/")  
+# sys.path.append("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/python_files/")  
 from Outdoor_CO2 import outdoor # This function calculates the outdoor CO2 data
 
 #%% Control plot properties"
@@ -62,34 +62,34 @@ offset = 0
 
 time = pd.read_sql_query("SELECT * FROM testdb.timeframes;", con = engine)      #standard syntax to fetch a table from Mysql
 
-start, end = str(time["Start"][i] - dt.timedelta(minutes=20)), str(time["End"][i]) # selects start and end times to slice dataframe
+start, end = str(time["Start"][i] - dt.timedelta(minutes=20)), str(time["End"][i]) # selects start and end times to slice dataframe, the sliced data starts with a point in time 20 minutes before the beginning of the experiment
 t0 = time["Start"][i]                                                           #actual start of the experiment
 
 table = time["tables"][i].split(",")[j]                                         #Name of the ventilation device
 
-dum = [["Experiment",time["short_name"][i] ], ["Sensor", table]]                # Prints the inut details in a table
-print(tabulate(dum))
+dum = [["Experiment",time["short_name"][i] ], ["Sensor", table]]                # Creates a list of 2 rows filled with string tuples specifying the experiment and the sensor.
+print(tabulate(dum))                                                            # Prints the inut details in a table
 
-database = time["database"][i]                                                  # Selects the database 
+database = time["database"][i]                                                  # Selects the name of the database as a string 
 
 
-background, dummy = outdoor(str(t0), str(end), plot = False)                    # Syntax to call the background concentration function
-background = background["CO2_ppm"].mean()                                       # Future: implement cyclewise background concentration
+background, dummy = outdoor(str(t0), str(end), plot = False)                    # Syntax to call the background concentration function, "dummy" is only necessary since the function "outdoor" returns a tuple of a dataframe and a string.
+background = background["CO2_ppm"].mean()                                       # Future: implement cyclewise background concentration; Till now it takes the mean outdoor concentration of the whole experiment.
 
 df = pd.read_sql_query("SELECT * FROM {}.{} WHERE datetime BETWEEN '{}' AND\
-                       '{}'".format(database, table, start, end), con = engine)
-df = df.loc[:,["datetime", "CO2_ppm"]]
-df["original"] = df["CO2_ppm"]                                                  # filters only the CO2 data till this line
+                       '{}'".format(database, table, start, end), con = engine) # Slices the data measured by the selected ventilation device sensor during the decay curve experiment of interest.
+df = df.loc[:,["datetime", "CO2_ppm"]]                                          # Slices the datetime and CO2 data out of the MySQL-export data.
+df["original"] = df["CO2_ppm"]                                                  # Copies the original absolute CO2-concentrations data form CO2_ppm in a "backup"-column originals 
 
-df["CO2_ppm"] = df["CO2_ppm"] - background                                      # Background concentration
+df["CO2_ppm"] = df["CO2_ppm"] - background                                      # substracts the background concentrations -> CO2_ppm contains CO2-concentration of some instance of time above background concentration.
 
-if df["CO2_ppm"].min() < 0:                                                     # Sometimes the ablolute CO2 concentraion is negative, so using offset
+if df["CO2_ppm"].min() < 0:                                                     # Sometimes the accumulated amount of CO2 concentraion becomes negative. This is not possible and would lead to a mistake for the integral calculation. An artificial offset lifts the whole decay curve at >=0.
     offset = df["CO2_ppm"].min()
     df["CO2_ppm"] = df["CO2_ppm"] - offset
     
-df = df.loc[~df.duplicated(subset=["datetime"])]                                # Checks for duplicated in datetime and removed them
-diff = (df["datetime"][1]-df["datetime"][0]).seconds
-df = df.set_index("datetime")
+df = df.loc[~df.duplicated(subset=["datetime"])]                                # Checks for duplicated in datetime and removed them; @Krishna: How can such a duplicate occur?
+diff = (df["datetime"][1]-df["datetime"][0]).seconds                            # integer diff in s; Calculates the length of the time interval between two timestamps 
+df = df.set_index("datetime")                                                   # Resets the index of the dataframe df from the standard integer {0, 1, 2, ...} to be exchanged by the datetime column containing the timestamps.
 while not(t0 in df.index.to_list()):                                            # The t0 from the excel sheet may not be precice that the sensor starts 
     t0 = t0 + dt.timedelta(seconds=1)                                           # - starts at the same time so i used this while loop to calculate the 
     print(t0)                                                                   # - the closest t0 after the original t0
