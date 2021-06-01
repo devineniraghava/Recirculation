@@ -147,7 +147,7 @@ df.loc[df['max'] > 0, 'exh'] = False                                            
 
 
 
-df_sup = df.loc[df["sup"].to_list()]                                            
+df_sup = df.loc[df["sup"].to_list()]                                            # @DRK: How does this command fills the time gaps e.g. in (i=16, j=2) from 
 
 a = df_sup.resample("5S").mean()                                                # Resampled beacuase, the data will be irregular; The option "5S" 
 plt.figure() 
