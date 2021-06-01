@@ -14,11 +14,19 @@ Created on Thu Apr  8 14:26:27 2021
 # Necessary modules
 import pandas as pd
 import numpy as np
+<<<<<<< HEAD
+from statistics import mean
+import datetime as dt
+import matplotlib.pyplot as plt
+pd.options.plotting.backend = "matplotlib"
+
+=======
 # from statistics import mean
 import time
 import datetime as dt
 import matplotlib.pyplot as plt
 pd.options.plotting.backend = "matplotlib"
+>>>>>>> 4707a65cb7d777a3c0321a68a0cc12c290a58381
 from tabulate import tabulate
 from sqlalchemy import create_engine
 
@@ -36,7 +44,11 @@ engine = create_engine("mysql+pymysql://wojtek:Password#102@wojtek.mysql.databas
 #%% Function import
 """Syntax to import a function from any folder. Useful if the function.py file 
    is in another folder other than the working folder"""
+<<<<<<< HEAD
+# import sys  
+=======
 import sys  
+>>>>>>> 4707a65cb7d777a3c0321a68a0cc12c290a58381
 # sys.path.append("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/python_files/")  
 from Outdoor_CO2 import outdoor # This function calculates the outdoor CO2 data
 
@@ -53,32 +65,59 @@ plt.rcParams["font.size"] = 10
 plt.close("all")
 
 #%% Load relevant data
+<<<<<<< HEAD
+t = 16 # to select the experiment (see Timeframes.xlsx)
+l = 1 # to select the sensor in the ventilation device
+
+=======
 i = 16 # to select the experiment (see Timeframes.xlsx)
 j = 2 # to select the sensor in the ventilation device
 offset = 0 
 
 T = 120                                                                         # T in s; period time of the ventilation systems push-pull devices.
+>>>>>>> 4707a65cb7d777a3c0321a68a0cc12c290a58381
 # time = pd.read_excel("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/Times_thesis.xlsx", sheet_name="Timeframes")
 # The dataframe time comes from the excel sheet in the path above, to make -
 # - changes go to this excel sheet, edit and upload it to mysql.
 
 time = pd.read_sql_query("SELECT * FROM testdb.timeframes;", con = engine)      #standard syntax to fetch a table from Mysql
 
+<<<<<<< HEAD
+start, end = str(time["Start"][t] - dt.timedelta(minutes=20)), str(time["End"][t]) # selects start and end times to slice dataframe
+t0 = time["Start"][t]                                                           #actual start of the experiment
+=======
 start, end = str(time["Start"][i] - dt.timedelta(minutes=20)), str(time["End"][i]) # selects start and end times to slice dataframe, the sliced data starts with a point in time 20 minutes before the beginning of the experiment
 t0 = time["Start"][i]                                                           #actual start of the experiment
+>>>>>>> 4707a65cb7d777a3c0321a68a0cc12c290a58381
 
-table = time["tables"][i].split(",")[j]                                         #Name of the ventilation device
+table = time["tables"][t].split(",")[l]                                         #Name of the ventilation device
 
+<<<<<<< HEAD
+dum = [["Experiment",time["short_name"][t] ], ["Sensor", table]]                # Prints the input details in a table
+print(tabulate(dum))
+
+database = time["database"][t]                                                  # Selects the database 
+=======
 dum = [["Experiment",time["short_name"][i] ], ["Sensor", table]]                # Creates a list of 2 rows filled with string tuples specifying the experiment and the sensor.
 print(tabulate(dum))                                                            # Prints the inut details in a table
 
 database = time["database"][i]                                                  # Selects the name of the database as a string 
+>>>>>>> 4707a65cb7d777a3c0321a68a0cc12c290a58381
 
 
 background, dummy = outdoor(str(t0), str(end), plot = False)                    # Syntax to call the background concentration function, "dummy" is only necessary since the function "outdoor" returns a tuple of a dataframe and a string.
 background = background["CO2_ppm"].mean()                                       # Future: implement cyclewise background concentration; Till now it takes the mean outdoor concentration of the whole experiment.
 
 df = pd.read_sql_query("SELECT * FROM {}.{} WHERE datetime BETWEEN '{}' AND\
+<<<<<<< HEAD
+                       '{}'".format(database, table, start, end), con = engine)
+df = df.loc[:,["datetime", "CO2_ppm"]]
+df["original"] = df["CO2_ppm"]                                                  # filters only the CO2 data till this line
+df.columns = ["datetime", "original", "CO2_ppm"]
+
+df["CO2_ppm"] = df["CO2_ppm"] - background                                      # Background concentration
+if df["CO2_ppm"].min() < 0:                                                     # Sometimes the ablolute CO2 concentraion is negative, so using offset
+=======
                        '{}'".format(database, table, start, end), con = engine) # Slices the data measured by the selected ventilation device sensor during the decay curve experiment of interest.
 df = df.loc[:,["datetime", "CO2_ppm"]]                                          # Slices the datetime and CO2 data out of the MySQL-export data.
 df["original"] = df["CO2_ppm"]                                                  # Copies the original absolute CO2-concentrations data form CO2_ppm in a "backup"-column originals 
@@ -86,6 +125,7 @@ df["original"] = df["CO2_ppm"]                                                  
 df["CO2_ppm"] = df["CO2_ppm"] - background                                      # substracts the background concentrations -> CO2_ppm contains CO2-concentration of some instance of time above background concentration.
 
 if df["CO2_ppm"].min() < 0:                                                     # Sometimes the accumulated amount of CO2 concentraion becomes negative. This is not possible and would lead to a mistake for the integral calculation. An artificial offset lifts the whole decay curve at >=0.
+>>>>>>> 4707a65cb7d777a3c0321a68a0cc12c290a58381
     offset = df["CO2_ppm"].min()
     df["CO2_ppm"] = df["CO2_ppm"] - offset
     
@@ -113,12 +153,12 @@ else:
 
 #%%% Plot Original
 fig,ax = plt.subplots()
-df.plot(title = "original", color = [ 'green', 'silver'], ax = ax)
+df.plot(title = "original " + time["short_name"][t], color = [ 'silver', 'green', 'orange'], ax = ax)
 
 pdf = df.copy().reset_index()
-#%%% Only in VS Code
+#%%% Plotly 
 import plotly.express as px
-fig = px.scatter(pdf, x="datetime", y="CO2_ppm")
+fig = px.line(pdf, x="datetime", y="CO2_ppm")
 fig.show()
 #%%% Find max min points
 from scipy.signal import argrelextrema                                          # Calculates the relative extrema of data.
@@ -153,7 +193,12 @@ a = df_sup.resample("5S").mean()                                                
 
 #%%% Plot supply                                                                # This can be verified from this graph        
 plt.figure() 
+<<<<<<< HEAD
+#%%% Plot supply                                                                   # This can be verified from this graph        
+a["CO2_ppm"].plot(title = "supply " + time["short_name"][t]) 
+=======
 a["CO2_ppm"].plot(title = "supply") 
+>>>>>>> 4707a65cb7d777a3c0321a68a0cc12c290a58381
 df_sup2 = a.loc[:,["CO2_ppm"]]
 
 df_exh = df.loc[~df["exh"].values]
@@ -161,15 +206,19 @@ b = df_exh.resample("5S").mean()
 
 
 #%%% Plot exhaust
+<<<<<<< HEAD
+b["CO2_ppm"].plot(title = "exhaust " + time["short_name"][t])                                            # Similar procedure is repeated from exhaust
+=======
 plt.figure()
 b["CO2_ppm"].plot(title = "exhaust")                                            # Similar procedure is repeated from exhaust
+>>>>>>> 4707a65cb7d777a3c0321a68a0cc12c290a58381
 df_exh2 = b.loc[:,["CO2_ppm"]]
 
 #%%% Plot for extra prespective
-fig,ax = plt.subplots()
+fig,ax1 = plt.subplots()
 
-df_sup.plot(y="CO2_ppm", style="yv-", ax = ax, label = "supply")
-df_exh.plot(y="CO2_ppm", style="r^-", ax = ax, label = "exhaust")
+df_sup.plot(y="CO2_ppm", style="yv-", ax = ax1, label = "supply")
+df_exh.plot(y="CO2_ppm", style="r^-", ax = ax1, label = "exhaust")
 
 
 
@@ -320,7 +369,6 @@ for e in df_exh_list:
         df_tau_exh.append(b)
     else:
         pass
-    
 #%%% Exhaust final tau 
 tau_list_exh = []
 for jdf in df_tau_exh:
