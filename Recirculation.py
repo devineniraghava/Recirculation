@@ -136,7 +136,7 @@ df['min'].plot(marker="v", ax = ax)                                             
 df.loc[df['min'] > -400, 'mask'] = False                                        # Marks all min as False; @DRK: Why is this "-400" necessary?                         
 df.loc[df['max'] > 0, 'mask'] = True                                            # Marks all max as True; @DRK: This is just a back-up right? For the case I use for debugging there is no change happening for df.
 df["mask"] = df["mask"].fillna(method='ffill').astype("bool")                   # Use forward to fill True and False 
-df = df.dropna(subset= ["mask"])
+df = df.dropna(subset= ["mask"])                                                # In case there are NaNs left (at the beginning of the array) it drops/removes the whole time stamps/rows.
 df["sup"] = df["mask"]                                                          # Create seperate columns for sup and exhaust; @DRK: Why is this necessary? At the end of these six lines of code df has 3 column {mask, sup, exh} containing all there the same data.
 df["exh"] = df["mask"]
 
@@ -147,19 +147,21 @@ df.loc[df['max'] > 0, 'exh'] = False                                            
 
 
 
-df_sup = df.loc[df["sup"].to_list()]                                            # @DRK: How does this command fills the time gaps e.g. in (i=16, j=2) from 
+df_sup = df.loc[df["sup"].to_list()]                                            # Extract all the supply phases form df. Meaning only the timestamps maeked with "True" in df["sup"] are selected. 
 
-a = df_sup.resample("5S").mean()                                                # Resampled beacuase, the data will be irregular; The option "5S" 
-plt.figure() 
+a = df_sup.resample("5S").mean()                                                # Resampled beacuase, the time stamps are missing after slicing out the supply phases form df. The option "5S" adds the now missing time stamps again but without data. This is only necessary to plot the arrays flawlessly later in the same graphs again. 
+
 #%%% Plot supply                                                                # This can be verified from this graph        
+plt.figure() 
 a["CO2_ppm"].plot(title = "supply") 
 df_sup2 = a.loc[:,["CO2_ppm"]]
 
 df_exh = df.loc[~df["exh"].values]
 b = df_exh.resample("5S").mean()
-plt.figure()
+
 
 #%%% Plot exhaust
+plt.figure()
 b["CO2_ppm"].plot(title = "exhaust")                                            # Similar procedure is repeated from exhaust
 df_exh2 = b.loc[:,["CO2_ppm"]]
 
@@ -174,7 +176,7 @@ df_exh.plot(y="CO2_ppm", style="r^-", ax = ax, label = "exhaust")
 #%% Marking dataframes supply
 """Marks every supply dataframe with a number for later anaysis """
 n = 1
-df_sup3 = df_sup2.copy().reset_index()
+df_sup3 = df_sup2.copy().reset_index()                                          
 
 start_date = str(t0); end_date = tn # CHANGE HERE 
 
@@ -183,7 +185,7 @@ mask = (df_sup3['datetime'] > start_date) & (df_sup3['datetime'] <= end_date)
 df_sup3 = df_sup3.loc[mask]
 
 
-for i,j in df_sup3.iterrows():
+for i,j in df_sup3.iterrows():                                                  # *.interrows() will always return a tuple encapsulating an int for the index of the dataframe where it is applied to and a series containing the data of row selected. Therefore it is good to seperate both before in e.g. i,j .
     try:
         # print(not pd.isnull(j["CO2_ppm"]), (np.isnan(df_sup3["CO2_ppm"][i+1])))
         if (not pd.isnull(j["CO2_ppm"])) and (np.isnan(df_sup3["CO2_ppm"][i+1])):
@@ -211,6 +213,7 @@ for idf in df_sup_list:
         diff = (a["datetime"][1] - a["datetime"][0]).seconds
         
         
+        ### ISO 16000-8 option to calculate slope (defined to be calculated by Spread-Sheat/Excel)
         a["runtime"] = np.arange(0,len(a) * diff, diff)
         
         a["t-te"] = a["runtime"] - a["runtime"][len(a)-1]
@@ -219,12 +222,14 @@ for idf in df_sup_list:
         
         a["slope"] = a["lnte/t"] / a["t-te"]
         slope_sup = a["slope"].mean()
-        #############
+        
+        ### More acurate option to calculate the solpe of each (sub-)curve
         x1 = a["runtime"].values
         y1 = a["log"].values
         from scipy.stats import linregress
         slope = linregress(x1,y1)[0]
-        ############
+        ###
+        
         a.loc[[len(a)-1], "slope"] = abs(slope_sup)
         
         sumconz = a["CO2_ppm"].iloc[1:-1].sum()
