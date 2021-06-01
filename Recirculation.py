@@ -320,6 +320,7 @@ for e in df_exh_list:
         df_tau_exh.append(b)
     else:
         pass
+    
 #%%% Exhaust final tau 
 tau_list_exh = []
 for jdf in df_tau_exh:
