@@ -181,10 +181,8 @@ df["sup"] = df["mask"]                                                          
 df["exh"] = df["mask"]
 
 
-
 df.loc[df['min'] > 0, 'sup'] = True                                             # The valleys have to be belong to supply as well 
 df.loc[df['max'] > 0, 'exh'] = False                                            # The peaks have to belong to max, before it was all filled be backfill
-
 
 
 df_sup = df.loc[df["sup"].to_list()]                                            # Extract all the supply phases form df. Meaning only the timestamps maeked with "True" in df["sup"] are selected. 
