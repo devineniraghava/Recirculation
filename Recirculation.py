@@ -56,6 +56,8 @@ plt.close("all")
 i = 16 # to select the experiment (see Timeframes.xlsx)
 j = 2 # to select the sensor in the ventilation device
 offset = 0 
+
+T = 120                                                                         # T in s; period time of the ventilation systems push-pull devices.
 # time = pd.read_excel("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/Times_thesis.xlsx", sheet_name="Timeframes")
 # The dataframe time comes from the excel sheet in the path above, to make -
 # - changes go to this excel sheet, edit and upload it to mysql.
@@ -94,14 +96,14 @@ while not(t0 in df.index.to_list()):                                            
     t0 = t0 + dt.timedelta(seconds=1)                                           # - starts at the same time so i used this while loop to calculate the 
     print(t0)                                                                   # - the closest t0 after the original t0
 
-df["roll"] = df["CO2_ppm"].rolling(int(120/diff)).mean()                             # moving average for 2 minutes, used to calculate Cend 
+df["roll"] = df["CO2_ppm"].rolling(int(T/diff)).mean()                          # moving average for 2 minutes, used to calculate Cend; T = 120s is the period time of the push-pull ventilation devices which compose the ventilation system. 
 
 
 
-c0 = df["CO2_ppm"].loc[t0]                                                      # C0
-Cend37 = round((c0)*0.37, 2)   
+c0 = df["CO2_ppm"].loc[t0]                                                      # C0; @DRK: Check if c0 = df["roll"].loc[t0] is better here.
+Cend37 = round((c0)*0.37, 2)                                                    # @DRK: From this line 101 schould be changed.   
 
-cend = df.loc[df["roll"].le(Cend37)]                                            # Cend
+cend = df.loc[df["roll"].le(Cend37)]                                            # Cend: Sliced df of the part of the decay curve below the 37 percent limit
 
 if len(cend) == 0:                                                              # Syntax to find the tn of the experiment
     tn = str(df.index[-1])
@@ -120,22 +122,22 @@ fig = px.scatter(pdf, x="datetime", y="CO2_ppm")
 fig.show()
 #%%% Find max min points
 from scipy.signal import argrelextrema                                          # Calculates the relative extrema of data.
-n = 10                                                                          # How many points on each side to use for the comparison to consider comparator(n, n+x) to be True.
+n = round(T / (2*diff))                                                         # How many points on each side to use for the comparison to consider comparator(n, n+x) to be True.; @DRK: This value should depend on diff and T (period time of the push-pull devices). n = T / (2*diff)
 
 df['max'] = df.iloc[argrelextrema(df['CO2_ppm'].values, np.greater_equal,\
-                                  order=n)[0]]['CO2_ppm']                       # Gives all the peaks 
+                                  order=n)[0]]['CO2_ppm']                       # Gives all the peaks; "np.greater_equal" is a callable function which argrelextrema shall use to compare to arrays before and after the point currently evaluated by argrelextrema.
 df['min'] = df.iloc[argrelextrema(df['CO2_ppm'].values, np.less_equal,\
-                                  order=n)[0]]['CO2_ppm']                       # Gives all the valleys
+                                  order=n)[0]]['CO2_ppm']                       # Gives all the valleys; "np.less_equal" is a callable function which argrelextrema shall use to compare to arrays before and after the point currently evaluated by argrelextrema.
     
 df['max'].plot(marker='o', ax = ax)                                             # This needs to be verified with the graph if python recognizes all peaks
 df['min'].plot(marker="v", ax = ax)                                             # - and valleys. If not adjust the n value.
 
 #%%% Filter supply and exhaust phases 
-df.loc[df['min'] > -400, 'mask'] = False                                        # Marks all min as False                         
-df.loc[df['max'] > 0, 'mask'] = True                                            # Marks all min as True
+df.loc[df['min'] > -400, 'mask'] = False                                        # Marks all min as False; @DRK: Why is this "-400" necessary?                         
+df.loc[df['max'] > 0, 'mask'] = True                                            # Marks all max as True; @DRK: This is just a back-up right? For the case I use for debugging there is no change happening for df.
 df["mask"] = df["mask"].fillna(method='ffill').astype("bool")                   # Use forward to fill True and False 
 df = df.dropna(subset= ["mask"])
-df["sup"] = df["mask"]                                                          # Create seperate columns for sup and exhaust
+df["sup"] = df["mask"]                                                          # Create seperate columns for sup and exhaust; @DRK: Why is this necessary? At the end of these six lines of code df has 3 column {mask, sup, exh} containing all there the same data.
 df["exh"] = df["mask"]
 
 
@@ -147,9 +149,9 @@ df.loc[df['max'] > 0, 'exh'] = False                                            
 
 df_sup = df.loc[df["sup"].to_list()]                                            
 
-a = df_sup.resample("5S").mean()                                                # Resampled beacuase, the data will be irregular
+a = df_sup.resample("5S").mean()                                                # Resampled beacuase, the data will be irregular; The option "5S" 
 plt.figure() 
-#%%% Plot supply                                                                   # This can be verified from this graph        
+#%%% Plot supply                                                                # This can be verified from this graph        
 a["CO2_ppm"].plot(title = "supply") 
 df_sup2 = a.loc[:,["CO2_ppm"]]
 
