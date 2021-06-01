@@ -1,15 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Apr 12 23:32:10 2021
-
-@author: Devineni, SvA
-"""
-
-# -*- coding: utf-8 -*-
-"""
 Created on Thu Apr  8 14:26:27 2021
 
-@author: Devineni
+@author: Devineni 
 """
 # Necessary modules
 import pandas as pd
