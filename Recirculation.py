@@ -7,16 +7,13 @@ Created on Thu Apr  8 14:26:27 2021
 # Necessary modules
 import pandas as pd
 import numpy as np
-from statistics import mean
 import datetime as dt
 import matplotlib.pyplot as plt
 pd.options.plotting.backend = "matplotlib"
 
 # from statistics import mean
 import time
-import datetime as dt
-import matplotlib.pyplot as plt
-pd.options.plotting.backend = "matplotlib"
+
 from tabulate import tabulate
 from sqlalchemy import create_engine
 
@@ -118,10 +115,7 @@ fig,ax = plt.subplots()
 df.plot(title = "original " + time["short_name"][t], color = [ 'silver', 'green', 'orange'], ax = ax)
 
 pdf = df.copy().reset_index()
-#%%% Plotly 
-import plotly.express as px
-fig = px.line(pdf, x="datetime", y="CO2_ppm")
-fig.show()
+
 #%%% Find max min points
 from scipy.signal import argrelextrema                                          # Calculates the relative extrema of data.
 n = round(T / (2*diff))                                                         # How many points on each side to use for the comparison to consider comparator(n, n+x) to be True.; @DRK: This value should depend on diff and T (period time of the push-pull devices). n = T / (2*diff)
@@ -151,9 +145,9 @@ df_sup = df.loc[df["sup"].to_list()]                                            
 
 a = df_sup.resample("5S").mean()                                                # Resampled beacuase, the time stamps are missing after slicing out the supply phases form df. The option "5S" adds the now missing time stamps again but without data. This is only necessary to plot the arrays flawlessly later in the same graphs again. 
 
-#%%% Plot supply                                                                # This can be verified from this graph        
-plt.figure() 
-#%%% Plot supply                                                                   # This can be verified from this graph        
+
+#%%% Plot supply  
+plt.figure()                                                                    # This can be verified from this graph        
 a["CO2_ppm"].plot(title = "supply " + time["short_name"][t]) 
 a["CO2_ppm"].plot(title = "supply") 
 df_sup2 = a.loc[:,["CO2_ppm"]]
@@ -163,10 +157,11 @@ b = df_exh.resample("5S").mean()
 
 
 #%%% Plot exhaust
-b["CO2_ppm"].plot(title = "exhaust " + time["short_name"][t])                                            # Similar procedure is repeated from exhaust
+b["CO2_ppm"].plot(title = "exhaust " + time["short_name"][t])                   # Similar procedure is repeated from exhaust
 plt.figure()
 b["CO2_ppm"].plot(title = "exhaust")                                            # Similar procedure is repeated from exhaust
 df_exh2 = b.loc[:,["CO2_ppm"]]
+
 
 #%%% Plot for extra prespective
 fig,ax1 = plt.subplots()
@@ -174,7 +169,19 @@ fig,ax1 = plt.subplots()
 df_sup.plot(y="CO2_ppm", style="yv-", ax = ax1, label = "supply")
 df_exh.plot(y="CO2_ppm", style="r^-", ax = ax1, label = "exhaust")
 
+#%%% Plotly 
+pd.options.plotting.backend = "plotly" 
 
+sup_exh_df = pd.concat([df_sup2, df_exh2], axis = 1).reset_index()
+sup_exh_df.columns = ["datetime","supply", "exhaust"]
+
+import plotly.express as px
+fig = px.line(sup_exh_df, x="datetime", y = sup_exh_df.columns, title = time["short_name"][t])
+fig.show()
+
+import plotly.io as pio
+
+pio.renderers.default='browser'
 
 #%% Marking dataframes supply
 """Marks every supply dataframe with a number for later anaysis """
