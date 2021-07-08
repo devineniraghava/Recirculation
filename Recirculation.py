@@ -20,14 +20,11 @@ from sqlalchemy import create_engine
 def prRed(skk): print("\033[31;1;m {}\033[00m" .format(skk)) 
 def prYellow(skk): print("\033[33;1;m {}\033[00m" .format(skk)) 
 # The following is a general syntax to dedine a MySQL connection
-# =============================================================================
-# engine = create_engine("mysql+pymysql://admin:the_secure_password_4_ever@localhost/",\
-#                          pool_pre_ping=True) # Krishna's local address
-# =============================================================================
-engine = create_engine("mysql+pymysql://wojtek:Password#102@wojtek.mysql.database.azure.com/",\
-                      pool_pre_ping=True) # Cloud server address
+engine = create_engine("mysql+pymysql://root:Password123@localhost/",pool_pre_ping=True) # Krishna's local address
+# engine = create_engine("mysql+pymysql://wojtek:Password#102@wojtek.mysql.database.azure.com/",\
+#                       pool_pre_ping=True) # Cloud server address
 
-def residence_time_sup_exh(experimentno=16, deviceno=1, periodtime=120, plot=False):
+def residence_time_sup_exh(experimentno=0, deviceno=0, periodtime=120, plot=False):
     #%% Function import
     """Syntax to import a function from any folder. Useful if the function.py file 
        is in another folder other than the working folder"""
@@ -35,7 +32,7 @@ def residence_time_sup_exh(experimentno=16, deviceno=1, periodtime=120, plot=Fal
     # import sys  
     # sys.path.append("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/python_files/")  
     from Outdoor_CO2 import outdoor # This function calculates the outdoor CO2 data
-    global a, b, df_tau_sup, df_tau_exh
+    global a, b, df_tau_sup, df_tau_exh, experiment, time
     #%% Control plot properties"
     """This syntax controls the plot properties(default plot font, shape, etc), 
         more attributes can be added and removed depending on the requirement """
@@ -53,22 +50,22 @@ def residence_time_sup_exh(experimentno=16, deviceno=1, periodtime=120, plot=Fal
     l = deviceno # to select the sensor in the ventilation device
     
     T = periodtime                                                              # T in s; period time of the ventilation systems push-pull devices.
-    # time = pd.read_excel("C:/Users/Devineni/OneDrive - bwedu/4_Recirculation/Times_thesis.xlsx", sheet_name="Timeframes")
+    time = pd.read_excel("Timeframes.xlsx", sheet_name="time_recirculation")
     # The dataframe time comes from the excel sheet in the path above, to make -
     # - changes go to this excel sheet, edit and upload it to mysql.
     
-    time = pd.read_sql_query("SELECT * FROM testdb.timeframes;", con = engine)      #standard syntax to fetch a table from Mysql
+    # time = pd.read_sql_query("SELECT * FROM testdb.timeframes;", con = engine)      #standard syntax to fetch a table from Mysql
     
     start, end = str(time["Start"][t] - dt.timedelta(minutes=20)), str(time["End"][t]) # selects start and end times to slice dataframe
     t0 = time["Start"][t]                                                           #actual start of the experiment
-    
+    global table
     table = time["tables"][t].split(",")[l]                                         #Name of the ventilation device
     
     dum = [["Experiment",time["short_name"][t] ], ["Sensor", table]]                # Creates a list of 2 rows filled with string tuples specifying the experiment and the sensor.
     print(tabulate(dum))                                                            # Prints the inut details in a table
-    
+    global database
     database = time["database"][t]                                                  # Selects the name of the database as a string 
-    
+    experiment = time["short_name"][t]
     
     background, dummy = outdoor(str(t0), str(end), plot = False)                    # Syntax to call the background concentration function, "dummy" is only necessary since the function "outdoor" returns a tuple of a dataframe and a string.
     background = background["CO2_ppm"].mean()                                       # Future: implement cyclewise background concentration; Till now it takes the mean outdoor concentration of the whole experiment.
@@ -196,6 +193,7 @@ def residence_time_sup_exh(experimentno=16, deviceno=1, periodtime=120, plot=Fal
     #%% Marking dataframes supply
     """Marks every supply dataframe with a number for later anaysis """
     n = 1
+    global df_sup3
     df_sup3 = df_sup2.copy().reset_index()                                          
     
     start_date = str(t0); end_date = tn # CHANGE HERE 
@@ -227,18 +225,18 @@ def residence_time_sup_exh(experimentno=16, deviceno=1, periodtime=120, plot=Fal
     """Calculates tau based in ISO 16000-8"""
     
     
-    if (database == "cbo_summer") or (database == "cbo_winter") or (database == "eshl_winter"):
+    if (database == "cbo_summer") or (database == "cbo_winter") :
         engine1 = create_engine("mysql+pymysql://root:Password123@localhost/{}".format("cbo_calibration"),pool_pre_ping=True)
 #        engine = create_engine("mysql+pymysql://root:@34.107.104.23/{}".format("cbo_calibration"),pool_pre_ping=True)
 
-    elif database == "eshl_summer":
+    elif (database == "eshl_summer") or (database == "eshl_winter"):
         engine1 = create_engine("mysql+pymysql://root:Password123@localhost/{}".format("eshl_calibration"),pool_pre_ping=True)
 #        engine = create_engine("mysql+pymysql://root:@34.107.104.23/{}".format("eshl_calibration"),pool_pre_ping=True)
 
     else:
         print("Please select a correct database")
     
-    
+    global reg_result
     reg_result = pd.read_sql_table("reg_result", con = engine1).drop("index", axis = 1)
     '''Calibration data for the particular sensor alone is filtered '''
     global res
@@ -446,8 +444,8 @@ def residence_time_sup_exh(experimentno=16, deviceno=1, periodtime=120, plot=Fal
             tau_s = exhaust residence time of the recirculation volume 
                     ("supply residence time")
     """
-    tn = cend.index[0]
-    return [t0, tn, tau_e, tau_s]
+
+    return experiment, tau_e, tau_s
 
     #%% Final result print
     prYellow("Recirculation:  {} %".format(round((tau_s/tau_e)*100) )  )
@@ -460,7 +458,34 @@ def residence_time_sup_exh(experimentno=16, deviceno=1, periodtime=120, plot=Fal
         2.) Include an option where the plots are turned off by default.
         3.) Only the plots "original [experiment]" and the final plot are
             interesting.
-
 """
 
-residence_time_sup_exh()
+recirculation = residence_time_sup_exh(10,0)
+
+
+
+
+
+
+#%%
+
+data = []
+for i in range(len(time)):
+    for j , k in enumerate(time.iat[i,4].split(",")):
+        
+        a, b, c = residence_time_sup_exh(experimentno=i, deviceno=j)
+        data.append([a,b,c,k])
+
+
+
+result  = pd.DataFrame(data, columns = ['experiment', 'tau_e', 'tau_s', 'device'])
+
+result.to_excel("result.xlsx")
+
+
+
+
+
+
+
+#%%
